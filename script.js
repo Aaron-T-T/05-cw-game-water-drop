@@ -1,45 +1,123 @@
-// Variables to control game state
-let gameRunning = false; // Keeps track of whether game is active or not
-let dropMaker; // Will store our timer that creates drops regularly
+// -------------------------------
+// GAME STATE
+// -------------------------------
+let gameRunning = false;
+let dropMaker;
+let score = 0;
+let pollution = 0;
+let timeLeft = 30;
 
-// Wait for button click to start the game
+// DOM elements
+const scoreDisplay = document.getElementById("score");
+const pollutionBar = document.getElementById("pollution-fill");
+const timeDisplay = document.getElementById("time");
+const gameContainer = document.getElementById("game-container");
+
+// -------------------------------
+// START GAME
+// -------------------------------
 document.getElementById("start-btn").addEventListener("click", startGame);
 
 function startGame() {
-  // Prevent multiple games from running at once
   if (gameRunning) return;
 
   gameRunning = true;
+  score = 0;
+  pollution = 0;
+  timeLeft = 30;
 
-  // Create new drops every second (1000 milliseconds)
+  scoreDisplay.textContent = score;
+  pollutionBar.style.width = "0%";
+  timeDisplay.textContent = timeLeft;
+
+  // Spawn drops every second
   dropMaker = setInterval(createDrop, 1000);
+
+  // Countdown timer
+  const timer = setInterval(() => {
+    timeLeft--;
+    timeDisplay.textContent = timeLeft;
+
+    if (timeLeft <= 0) {
+      endGame();
+      clearInterval(timer);
+    }
+  }, 1000);
 }
 
+// -------------------------------
+// CREATE DROP
+// -------------------------------
 function createDrop() {
-  // Create a new div element that will be our water drop
   const drop = document.createElement("div");
-  drop.className = "water-drop";
 
-  // Make drops different sizes for visual variety
-  const initialSize = 60;
-  const sizeMultiplier = Math.random() * 0.8 + 0.5;
-  const size = initialSize * sizeMultiplier;
+  // 70% chance good drop, 30% bad drop
+  const isBad = Math.random() < 0.3;
+  drop.className = isBad ? "water-drop bad-drop" : "water-drop good-drop";
+
+  // Size variety
+  const size = 40 + Math.random() * 40;
   drop.style.width = drop.style.height = `${size}px`;
 
-  // Position the drop randomly across the game width
-  // Subtract 60 pixels to keep drops fully inside the container
-  const gameWidth = document.getElementById("game-container").offsetWidth;
-  const xPosition = Math.random() * (gameWidth - 60);
-  drop.style.left = xPosition + "px";
+  // Random X position
+  const gameWidth = gameContainer.offsetWidth;
+  drop.style.left = Math.random() * (gameWidth - size) + "px";
 
-  // Make drops fall for 4 seconds
+  // Fall speed
   drop.style.animationDuration = "4s";
 
-  // Add the new drop to the game screen
-  document.getElementById("game-container").appendChild(drop);
+  // Add to screen
+  gameContainer.appendChild(drop);
 
-  // Remove drops that reach the bottom (weren't clicked)
-  drop.addEventListener("animationend", () => {
-    drop.remove(); // Clean up drops that weren't caught
+  // CLICK INTERACTION
+  drop.addEventListener("click", () => {
+    if (!gameRunning) return;
+
+    if (isBad) {
+      pollution += 10;
+      pollutionBar.style.width = pollution + "%";
+      drop.style.backgroundColor = "#F5402C"; // charity: water red
+    } else {
+      score += 5;
+      scoreDisplay.textContent = score;
+
+      // Visual feedback
+      drop.style.backgroundColor = "#FFC907"; // charity: water yellow
+      drop.style.transform = "scale(1.3)";
+    }
+
+    // Remove after click
+    setTimeout(() => drop.remove(), 150);
+
+    // Lose condition
+    if (pollution >= 100) {
+      endGame();
+    }
   });
+
+  // If drop reaches bottom without being clicked
+  drop.addEventListener("animationend", () => {
+    if (isBad) {
+      pollution += 10;
+      pollutionBar.style.width = pollution + "%";
+    }
+    drop.remove();
+
+    if (pollution >= 100) {
+      endGame();
+    }
+  });
+}
+
+// -------------------------------
+// END GAME
+// -------------------------------
+function endGame() {
+  gameRunning = false;
+  clearInterval(dropMaker);
+
+  alert(`Game Over! Your score: ${score}`);
+
+  // Clear remaining drops
+  document.querySelectorAll(".water-drop").forEach(d => d.remove());
 }
